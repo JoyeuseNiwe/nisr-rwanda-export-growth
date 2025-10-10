@@ -40,8 +40,13 @@ This project identifies high-potential exports for Rwanda by analyzing trade dat
 
 ---
 
+## Interactive Dashboard
+Access the interactive dashboard here: [Rwanda Export Growth Dashboard](https://nisr-rwanda-export-growth-2.onrender.com/)
+
+---
+
 ## Usage
 ```bash
-git clone https://github.com/<your-username>/nisr-rwanda-export-growth.git
+https://github.com/JoyeuseNiwe/nisr-rwanda-export-growth.git
 pip install -r requirements.txt
 python main.py
