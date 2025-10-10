@@ -1,0 +1,17 @@
+# Data manipulation
+pandas
+numpy
+
+# Machine learning
+scikit-learn
+category-encoders
+
+# Web dashboard
+dash
+dash-bootstrap-components
+
+# Interactive plotting
+plotly
+
+# Deployment
+gunicorn
