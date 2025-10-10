@@ -8,8 +8,7 @@ from sklearn.pipeline import make_pipeline
 from category_encoders import OneHotEncoder
 import dash
 from dash import dcc, html
-from dash.dependencies import State
-from dash.dependencies import Input, Output
+from dash.dependencies import State, Input, Output
 import plotly.express as px
 
 # Load your trained LinearRegression model
@@ -20,7 +19,7 @@ df = pd.read_csv("Exports.csv")
 df["Product Group"] = df["Product Group"].str.strip()
 df["Partner Name"] = df["Partner Name"].str.strip()
 
-# --- Initial/Default Data Calculations (Used when filters are NOT applied) ---
+# --- Initial/Default Data Calculations ---
 exports_by_year = df.groupby("Year")["Export (US$ Thousand)"].sum().reset_index()
 df_products = df[df["Product Group"] != "All Products"]
 top_products_all = (
@@ -68,7 +67,7 @@ top_rca_all = (
     .reset_index()
 )
 
-# Recalculate top_growth_products_all for the filtered version
+# Calculate growth products
 df_products_growth = df_products.sort_values(["Product Group", "Partner Name", "Year"])
 df_products_growth["Export Growth Share"] = (
     df_products_growth.groupby(["Product Group", "Partner Name"])[
@@ -87,7 +86,7 @@ top_growth_products_all = (
     .tail(10)
 )
 
-# --- Metric Card Default Values (using 'all' data) ---
+# --- Metric Card Default Values ---
 sorted_exports = exports_by_year.sort_values("Year")
 latest_year_row = sorted_exports.iloc[-1] if not sorted_exports.empty else pd.Series({'Export (US$ Thousand)': 0, 'Year': None})
 prev_year_value = (
@@ -111,20 +110,10 @@ else:
     yoy_text_all = "No prior year data"
     yoy_class_all = "delta neutral"
 
-# --- Palette and App setup (unchanged) ---
-palette = {
-    "background": "#f5f8ff",
-    "surface": "#ffffff",
-    "primary": "#1f3c88",
-    "accent": "#3a5fcd",
-    "accent_soft": "#91c7ff",
-    "muted": "#5c6f91",
-    "gradient": ["#1e3a8a", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"],
-}
-
+# --- App Setup ---
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 
-# --- CORRECTED LAYOUT (Metric cards reordered to match request) ---
+# --- LAYOUT ---
 app.layout = html.Div(
     className="app-shell",
     children=[
@@ -158,6 +147,7 @@ app.layout = html.Div(
                 html.Div(
                     className="metric-card",
                     children=[
+                        html.Div(className="metric-icon", children="💰"),
                         html.Span("Total Exports", className="card-title"),
                         html.Span(id="metric-total", children=f"${latest_total:,.0f}K", className="metric"),
                         html.Span(id="metric-yoy", children=yoy_text_all, className=yoy_class_all),
@@ -167,6 +157,7 @@ app.layout = html.Div(
                 html.Div(
                     className="metric-card",
                     children=[
+                        html.Div(className="metric-icon", children="📦"),
                         html.Span("Top Product", className="card-title"),
                         html.Span(
                             id="metric-top-product-name",
@@ -184,6 +175,7 @@ app.layout = html.Div(
                 html.Div(
                     className="metric-card",
                     children=[
+                        html.Div(className="metric-icon", children="⭐"),
                         html.Span("Top RCA Product", className="card-title"),
                         html.Span(
                             id="metric-rca-product",
@@ -201,6 +193,7 @@ app.layout = html.Div(
                 html.Div(
                     className="metric-card",
                     children=[
+                        html.Div(className="metric-icon", children="🌍"),
                         html.Span("Top Region", className="card-title"),
                         html.Span(
                             id="metric-top-region-name",
@@ -218,6 +211,7 @@ app.layout = html.Div(
                 html.Div(
                     className="metric-card",
                     children=[
+                        html.Div(className="metric-icon", children="🤝"),
                         html.Span("Partners", className="card-title"),
                         html.Span(id="metric-partners", children=f"{unique_partners_all}", className="metric"),
                         html.Span("countries", className="delta neutral"),
@@ -227,6 +221,7 @@ app.layout = html.Div(
                 html.Div(
                     className="metric-card",
                     children=[
+                        html.Div(className="metric-icon", children="📊"),
                         html.Span("Rwanda GDP", className="card-title"),
                         html.Span(
                             id="metric-gdp-current",
@@ -244,54 +239,55 @@ app.layout = html.Div(
                 html.Div(
                     className="sidebar",
                     children=[
-                        html.Div(className="sidebar-title", children="Filters"),
-                        html.Label("Select Year"),
+                        html.Div(className="sidebar-title", children="Filters & Navigation"),
+                        html.Label("Select Year", className="filter-label"),
                         dcc.Dropdown(
                             id="year-filter",
                             options=[{"label": y, "value": y} for y in sorted(df["Year"].unique())],
                             value=None,
                             placeholder="All Years",
                             clearable=True,
+                            className="year-dropdown"
                         ),
-                        html.Hr(),
+                        html.Hr(className="sidebar-divider"),
                         html.Div(
-                            style={"margin-bottom": "30px"},
+                            className="nav-section",
                             children=[
-                                html.Div("Analytics 📊", className="sidebar-card-title"),
+                                html.Div("Analytics 📊", className="sidebar-section-title"),
                                 html.Div(
-                                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "10px"},
+                                    className="nav-grid",
                                     children=[
-                                        html.Div(id="nav-export-trends", className="nav-item nav-item-active", children="📊 Trends", n_clicks=0),
-                                        html.Div(id="nav-top5-trend", className="nav-item", children="⭐ Top 5 Trend", n_clicks=0),
-                                        html.Div(id="nav-top-products", className="nav-item", children="🛍️ Top Products", n_clicks=0),
-                                        html.Div(id="nav-top-regions", className="nav-item", children="🌍 Top Regions", n_clicks=0),
-                                        html.Div(id="nav-top-countries", className="nav-item", children="🏳️ Top Countries", n_clicks=0),
-                                        html.Div(id="nav-rca-analysis", className="nav-item", children="📈 RCA Analysis", n_clicks=0),
-                                        html.Div(id="nav-growth-products", className="nav-item", children="📈 Growth Products", n_clicks=0),
+                                        html.Div(id="nav-export-trends", className="nav-item nav-item-active", children="📈 Trends", n_clicks=0),
+                                        html.Div(id="nav-top5-trend", className="nav-item", children="⭐ Top 5", n_clicks=0),
+                                        html.Div(id="nav-top-products", className="nav-item", children="🛍 Products", n_clicks=0),
+                                        html.Div(id="nav-top-regions", className="nav-item", children="🌍 Regions", n_clicks=0),
+                                        html.Div(id="nav-top-countries", className="nav-item", children="🏳 Countries", n_clicks=0),
+                                        html.Div(id="nav-rca-analysis", className="nav-item", children="📊 RCA", n_clicks=0),
+                                        html.Div(id="nav-growth-products", className="nav-item", children="📈 Growth", n_clicks=0),
                                     ],
                                 ),
                             ],
                         ),
                         html.Div(
-                            style={"margin-bottom": "30px"},
+                            className="nav-section",
                             children=[
-                                html.Div("Forecast & Growth 📈", className="sidebar-card-title"),
+                                html.Div("Forecast 🔮", className="sidebar-section-title"),
                                 html.Div(
-                                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "10px"},
+                                    className="nav-grid",
                                     children=[
-                                        html.Div(id="nav-predict-exports", className="nav-item", children="🔮 Predict Exports", n_clicks=0),
+                                        html.Div(id="nav-predict-exports", className="nav-item", children="🔮 Predict", n_clicks=0),
                                     ],
                                 ),
                             ],
                         ),
                         html.Div(
-                            style={"margin-bottom": "30px"},
+                            className="nav-section",
                             children=[
-                                html.Div("Recommendations 💡", className="sidebar-card-title"),
+                                html.Div("Insights 💡", className="sidebar-section-title"),
                                 html.Div(
-                                    style={"display": "grid", "gridTemplateColumns": "1fr", "gap": "10px"},
+                                    className="nav-grid-single",
                                     children=[
-                                        html.Div(id="nav-recommendation", className="nav-item", children="💡 Recommendations", n_clicks=0),
+                                        html.Div(id="nav-recommendation", className="nav-item", children="💡 SME Strategy", n_clicks=0),
                                     ],
                                 ),
                             ],
@@ -314,47 +310,43 @@ app.layout = html.Div(
 def stylize(fig):
     fig.update_layout(
         template="plotly_white",
-        plot_bgcolor=palette["surface"],
-        paper_bgcolor=palette["surface"],
-        font=dict(
-            color=palette["primary"], family="Inter, 'Segoe UI', sans-serif", size=11
-        ),
-        title_font=dict(color=palette["primary"], size=16, weight=600),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        font=dict(color="#0F172A", family="Inter, 'Segoe UI', sans-serif", size=12),
+        title_font=dict(color="#0F172A", size=18, weight=600),
         xaxis=dict(
             showgrid=True,
-            gridcolor="rgba(0,0,0,0.05)",
+            gridcolor="rgba(15, 23, 42, 0.08)",
             zeroline=False,
-            linecolor=palette["muted"],
+            linecolor="#CBD5E1",
         ),
         yaxis=dict(
             showgrid=True,
-            gridcolor="rgba(0,0,0,0.05)",
+            gridcolor="rgba(15, 23, 42, 0.08)",
             zeroline=False,
-            linecolor=palette["muted"],
+            linecolor="#CBD5E1",
         ),
-        margin=dict(l=50, r=30, t=50, b=40),
-        height=450,
+        margin=dict(l=50, r=30, t=60, b=40),
+        height=480,
     )
     return fig
 
-# --- CALLBACK (Output/Return Order already fixed and remains correct) ---
+
 @app.callback(
-[
-Output("metric-total", "children"),          # 0. EXPORTS (Value)
-Output("metric-yoy", "children"),            # 1. EXPORTS (YoY Text)
-Output("metric-yoy", "className"),           # 2. EXPORTS (YoY Class)
-Output("metric-top-product-name", "children"),# 3. TOP PRODUCT (Name)
-Output("metric-top-product-value", "children"),# 4. TOP PRODUCT (Value)
-Output("metric-rca-product", "children"),    # 5. RCA (Name)
-Output("metric-rca-value", "children"),      # 6. RCA (Value)
-Output("metric-top-region-name", "children"),# 7. REGION (Name)
-Output("metric-top-region-value", "children"),# 8. REGION (Value)
-Output("metric-partners", "children"),       # 9. PARTNERS (Count)
-Output("metric-gdp-current", "children"),    # 10. GDP (Value)
-],
-[
-Input("year-filter", "value"),
-],
+    [
+        Output("metric-total", "children"),
+        Output("metric-yoy", "children"),
+        Output("metric-yoy", "className"),
+        Output("metric-top-product-name", "children"),
+        Output("metric-top-product-value", "children"),
+        Output("metric-rca-product", "children"),
+        Output("metric-rca-value", "children"),
+        Output("metric-top-region-name", "children"),
+        Output("metric-top-region-value", "children"),
+        Output("metric-partners", "children"),
+        Output("metric-gdp-current", "children"),
+    ],
+    [Input("year-filter", "value")],
 )
 def update_metrics(year_value):
     metric_df = df.copy()
@@ -362,14 +354,12 @@ def update_metrics(year_value):
     if year_value is not None and year_value != "Overall":
         metric_df = metric_df[metric_df["Year"] == year_value]
 
-    # --- SETUP CALCULATION DATA FRAMES ---
     products_df = metric_df[metric_df["Product Group"] != "All Products"]
     countries_df = metric_df[metric_df["Partner Type"] == "Country"]
     regions_df_filtered = metric_df[metric_df["Partner Type"] == "Region"].copy()
     regions_df_filtered = regions_df_filtered[regions_df_filtered["Partner Name"] != "World"]
 
-
-    # 1. Exports Calculation
+    # Exports Calculation
     exports_by_year = metric_df.groupby("Year")["Export (US$ Thousand)"].sum().reset_index()
     sorted_exports = exports_by_year.sort_values("Year")
     latest_total = 0
@@ -389,7 +379,7 @@ def update_metrics(year_value):
         else:
             yoy_text = f"Data for {year_value}" if year_value else "Single year data"
 
-    # 2. Top Product Calculation
+    # Top Product
     top_product = (
         products_df.groupby("Product Group")["Export (US$ Thousand)"]
         .sum()
@@ -400,7 +390,7 @@ def update_metrics(year_value):
     top_product_name = top_product.iloc[0]["Product Group"] if not top_product.empty else "—"
     top_product_value = f"${top_product.iloc[0]['Export (US$ Thousand)']:,.0f}K" if not top_product.empty else "No data"
 
-    # 3. RCA Calculation
+    # RCA
     top_rca = (
         products_df.groupby("Product Group")["Revealed comparative advantage"]
         .mean()
@@ -411,7 +401,7 @@ def update_metrics(year_value):
     rca_product_name = top_rca.iloc[0]["Product Group"] if not top_rca.empty else "—"
     rca_value = f"{top_rca.iloc[0]['Revealed comparative advantage']:.2f}" if not top_rca.empty else "No data"
 
-    # 4. Region Calculation
+    # Region
     top_region = (
         regions_df_filtered.groupby("Partner Name")["Export (US$ Thousand)"]
         .sum()
@@ -422,10 +412,10 @@ def update_metrics(year_value):
     top_region_name = top_region.iloc[0]["Partner Name"] if not top_region.empty else "—"
     top_region_value = f"${top_region.iloc[0]['Export (US$ Thousand)']:,.0f}K" if not top_region.empty else "No data"
 
-    # 5. Partners Calculation
+    # Partners
     unique_partners_count = countries_df['Partner Name'].nunique()
 
-    # 6. GDP Calculation
+    # GDP
     gdp_current = 0
     if 'GDP_Current_USD' in df.columns:
         if year_value is None or year_value == "Overall":
@@ -441,37 +431,25 @@ def update_metrics(year_value):
     if gdp_current == 0:
         gdp_display = f"${10_500_000_000/1_000_000_000:.1f}B"
         if 'GDP_Current_USD' in df.columns:
-             gdp_display = "No data"
+            gdp_display = "No data"
     else:
         gdp_display = f"${gdp_current / 1_000_000_000:.1f}B"
 
-
-    # --- FINAL RETURN STATEMENT (Order matches the Output list: Exports, Top Product, RCA, Region, Partner, GDP) ---
     return (
-        # EXPORTS (3)
-        f"${latest_total:,.0f}K",         # 0. metric-total
-        yoy_text,                         # 1. metric-yoy (text)
-        yoy_class,                        # 2. metric-yoy (class)
-
-        # TOP PRODUCT (2)
-        top_product_name,                 # 3. metric-top-product-name
-        top_product_value,                # 4. metric-top-product-value
-
-        # RCA (2)
-        rca_product_name,                 # 5. metric-rca-product
-        rca_value,                        # 6. metric-rca-value
-
-        # REGION (2)
-        top_region_name,                  # 7. metric-top-region-name
-        top_region_value,                 # 8. metric-top-region-value
-
-        # PARTNERS (1)
-        f"{unique_partners_count}",       # 9. metric-partners
-
-        # GDP (1)
-        gdp_display,                      # 10. metric-gdp-current
+        f"${latest_total:,.0f}K",
+        yoy_text,
+        yoy_class,
+        top_product_name,
+        top_product_value,
+        rca_product_name,
+        rca_value,
+        top_region_name,
+        top_region_value,
+        f"{unique_partners_count}",
+        gdp_display,
     )
-# --- CALLBACK TO UPDATE CHART (Conditional Filter Logic Implemented) ---
+
+
 @app.callback(
     [
         Output("chart-content", "children"),
@@ -506,9 +484,7 @@ def update_chart(
 ):
     ctx = dash.callback_context
     filter_tabs = ["nav-top-products", "nav-top-regions", "nav-top-countries", "nav-rca-analysis", "nav-growth-products"]
-    unfiltered_tabs = ["nav-export-trends", "nav-top5-trend", "nav-predict-exports"]
     
-    # Ensure button_id is valid
     button_id = active_tab_state if isinstance(active_tab_state, str) else "nav-export-trends"
     
     if ctx.triggered:
@@ -518,7 +494,6 @@ def update_chart(
         elif prop_id == "year-filter":
             button_id = active_tab_state if isinstance(active_tab_state, str) else "nav-export-trends"
     
-    # Keep predict tab active if year filter changes
     if button_id == "nav-predict-exports" and prop_id == "year-filter":
         button_id = "nav-predict-exports"
     
@@ -539,6 +514,7 @@ def update_chart(
     if button_id in filter_tabs and year_value is not None:
         df_chart = df_chart[df_chart["Year"] == year_value]
     
+    # CHARTS GENERATION
     if button_id == "nav-top5-trend":
         df_top = df[df["Product Group"] != "All Products"]
         top_products_list = df_top.groupby("Product Group")["Export (US$ Thousand)"].sum().sort_values(ascending=False).head(5).index.tolist()
@@ -546,9 +522,8 @@ def update_chart(
         exports_top = df_top5.groupby(["Year", "Product Group"])["Export (US$ Thousand)"].sum().reset_index()
         fig = px.line(
             exports_top, x="Year", y="Export (US$ Thousand)", color="Product Group", markers=True,
-            title="Top 5 Export Products Trend (Overall Data)"
+            title="Top 5 Export Products Trend"
         )
-        fig.update_layout(legend_title_text="Product Group", xaxis_title="Year", yaxis_title="Export (US$ Thousand)", template="plotly_white")
         fig = stylize(fig)
         chart = dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "100%"})
     
@@ -556,14 +531,13 @@ def update_chart(
         df_products_filtered = df_chart[df_chart["Product Group"] != "All Products"]
         top_products_filtered = df_products_filtered.groupby("Product Group")["Export (US$ Thousand)"].sum().sort_values(ascending=False).head(10).reset_index()
         if top_products_filtered.empty:
-            chart = html.Div("No data available for selected year", style={"textAlign": "center", "color": palette["primary"]})
+            chart = html.Div("No data available for selected year", className="no-data-message")
         else:
             fig = px.bar(
                 top_products_filtered, x="Export (US$ Thousand)", y="Product Group", orientation="h",
-                title="Top 10 Export Products", color_discrete_sequence=[palette["accent"]]
+                title="Top 10 Export Products", color_discrete_sequence=["#3B82F6"]
             )
             fig.update_layout(yaxis=dict(categoryorder="total ascending"))
-            fig.update_traces(marker_line_color=palette["accent_soft"], marker_line_width=1.5)
             fig = stylize(fig)
             chart = dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "100%"})
     
@@ -572,14 +546,12 @@ def update_chart(
         regions_only_filtered = regions_df_filtered[regions_df_filtered["Partner Name"] != "World"]
         top_regions_filtered = regions_only_filtered.groupby("Partner Name")["Export (US$ Thousand)"].sum().sort_values(ascending=False).reset_index()
         if top_regions_filtered.empty:
-            chart = html.Div("No data available for selected year", style={"textAlign": "center", "color": palette["primary"]})
+            chart = html.Div("No data available for selected year", className="no-data-message")
         else:
             fig = px.bar(
                 top_regions_filtered, y="Export (US$ Thousand)", x="Partner Name", title="Rwanda Exports by Region",
-                color_discrete_sequence=[palette["accent"]]
+                color_discrete_sequence=["#3B82F6"]
             )
-            fig.update_layout(xaxis=dict(categoryorder="total ascending"))
-            fig.update_traces(marker_line_color=palette["accent_soft"], marker_line_width=1.5)
             fig = stylize(fig)
             chart = dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "100%"})
     
@@ -587,14 +559,13 @@ def update_chart(
         countries_df_filtered = df_chart[df_chart["Partner Type"] == "Country"].copy()
         top_countries_filtered = countries_df_filtered.groupby("Partner Name")["Export (US$ Thousand)"].sum().nlargest(10).reset_index()
         if top_countries_filtered.empty:
-            chart = html.Div("No data available for selected year", style={"textAlign": "center", "color": palette["primary"]})
+            chart = html.Div("No data available for selected year", className="no-data-message")
         else:
             fig = px.bar(
                 top_countries_filtered, x="Export (US$ Thousand)", y="Partner Name", title="Top 10 Export Partner Countries",
-                color_discrete_sequence=[palette["accent"]]
+                color_discrete_sequence=["#3B82F6"]
             )
             fig.update_layout(yaxis=dict(categoryorder="total ascending"))
-            fig.update_traces(marker_line_color=palette["accent_soft"], marker_line_width=1.5)
             fig = stylize(fig)
             chart = dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "100%"})
     
@@ -602,14 +573,13 @@ def update_chart(
         df_products_filtered = df_chart[df_chart["Product Group"] != "All Products"]
         top_rca_filtered = df_products_filtered.groupby("Product Group")["Revealed comparative advantage"].mean().sort_values(ascending=False).head(10).reset_index()
         if top_rca_filtered.empty:
-            chart = html.Div("No data available for selected year", style={"textAlign": "center", "color": palette["primary"]})
+            chart = html.Div("No data available for selected year", className="no-data-message")
         else:
             fig = px.bar(
                 top_rca_filtered, x="Revealed comparative advantage", y="Product Group", orientation="h",
-                title="Top 10 Products by Revealed Comparative Advantage", color_discrete_sequence=[palette["accent"]]
+                title="Top 10 Products by RCA", color_discrete_sequence=["#3B82F6"]
             )
             fig.update_layout(yaxis=dict(categoryorder="total ascending"))
-            fig.update_traces(marker_line_color=palette["accent_soft"], marker_line_width=1.5)
             fig = stylize(fig)
             chart = dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "100%"})
     
@@ -619,15 +589,14 @@ def update_chart(
         if year_value is not None:
             top_products_filtered = df_products_growth_filtered.groupby("Product Group")["Export (US$ Thousand)"].sum().sort_values(ascending=False).head(10).reset_index()
             if top_products_filtered.empty:
-                chart = html.Div("No data available for selected year", style={"textAlign": "center", "color": palette["primary"]})
+                chart = html.Div("No data available for selected year", className="no-data-message")
             else:
                 fig = px.bar(
                     top_products_filtered, x="Export (US$ Thousand)", y="Product Group", orientation="h",
-                    title=f"Top 10 Products by Export Value ({year_value}) (Growth requires multiple years)",
-                    color_discrete_sequence=[palette["accent"]]
+                    title=f"Top 10 Products by Export Value ({year_value})",
+                    color_discrete_sequence=["#3B82F6"]
                 )
                 fig.update_layout(yaxis=dict(categoryorder="total ascending"))
-                fig.update_traces(marker_line_color=palette["accent_soft"], marker_line_width=1.5)
                 fig = stylize(fig)
                 chart = dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "100%"})
         else:
@@ -637,103 +606,278 @@ def update_chart(
             df_products_growth_filtered = df_products_growth_filtered[df_products_growth_filtered["Export Growth Share"] > 0]
             top_growth_products_filtered = df_products_growth_filtered.groupby("Product Group", as_index=False)["Export Growth Share"].mean().sort_values("Export Growth Share", ascending=True).tail(10)
             if top_growth_products_filtered.empty:
-                chart = html.Div("No growth data available", style={"textAlign": "center", "color": palette["primary"]})
+                chart = html.Div("No growth data available", className="no-data-message")
             else:
                 fig = px.bar(
                     top_growth_products_filtered, x="Export Growth Share", y="Product Group", orientation="h",
-                    title="Top 10 Products by Average Export Growth (%)", color_discrete_sequence=[palette["accent"]]
+                    title="Top 10 Products by Growth Rate", color_discrete_sequence=["#3B82F6"]
                 )
                 fig.update_layout(yaxis=dict(categoryorder="total ascending"))
-                fig.update_traces(marker_line_color=palette["accent_soft"], marker_line_width=1.5)
                 fig = stylize(fig)
                 chart = dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "100%"})
     
     elif button_id == "nav-predict-exports":
         chart = html.Div(
-            [
-                html.H2("📈 EXPORT PREDICTION - RWANDA", style={"textAlign": "center", "color": palette["primary"], "margin": "5px 0 20px 0", "fontSize": "26px", "fontWeight": "700"}),
+            className="prediction-container",
+            children=[
+                html.H2("🔮 Export Prediction Tool", className="prediction-title"),
+                html.P("Forecast Rwanda's export potential using economic indicators and machine learning", className="prediction-subtitle"),
+                
                 html.Div(
-                    [
-                        html.H4("1️⃣ Select Time & Product", style={"color": palette["primary"], "fontSize": "14px"}),
-                        html.Label("Year for Prediction:"),
-                        dcc.Dropdown(id="year-dropdown", options=[{"label": str(y), "value": y} for y in range(2022, 2027)], value=2025, clearable=False),
-                        html.Br(),
-                        html.Label("Product Category:"),
-                        dcc.Dropdown(id="product-dropdown", options=[{"label": x, "value": x} for x in sorted(df["Product Group"].unique())], value=sorted(df["Product Group"].unique())[0]),
+                    className="prediction-form",
+                    children=[
+                        html.Div(
+                            className="form-section",
+                            children=[
+                                html.H4("📅 Time & Product Selection", className="form-section-title"),
+                                html.Label("Year for Prediction:", className="form-label"),
+                                dcc.Dropdown(
+                                    id="year-dropdown",
+                                    options=[{"label": str(y), "value": y} for y in range(2022, 2027)],
+                                    value=2025,
+                                    clearable=False,
+                                    className="form-dropdown"
+                                ),
+                                html.Label("Product Category:", className="form-label"),
+                                dcc.Dropdown(
+                                    id="product-dropdown",
+                                    options=[{"label": x, "value": x} for x in sorted(df["Product Group"].unique())],
+                                    value=sorted(df["Product Group"].unique())[0],
+                                    className="form-dropdown"
+                                ),
+                            ],
+                        ),
+                        html.Div(
+                            className="form-section",
+                            children=[
+                                html.H4("📊 Economic Indicators", className="form-section-title"),
+                                html.Label("Global Market Growth (%)", className="form-label"),
+                                dcc.Slider(
+                                    id="world-growth-input",
+                                    min=0, max=6, step=0.1, value=3.5,
+                                    marks={i: f"{i}%" for i in range(0, 7)},
+                                    className="form-slider"
+                                ),
+                                html.Small("Expected growth of global market demand", className="form-hint"),
+                                
+                                html.Label("Rwanda Economy Growth (%)", className="form-label"),
+                                dcc.Slider(
+                                    id="country-growth-input",
+                                    min=5, max=10, step=0.1, value=8.0,
+                                    marks={i: f"{i}%" for i in range(5, 11)},
+                                    className="form-slider"
+                                ),
+                                html.Small("Annual GDP growth rate of Rwanda", className="form-hint"),
+                            ],
+                        ),
+                        html.Div(
+                            className="form-section",
+                            children=[
+                                html.H4("💰 GDP Information", className="form-section-title"),
+                                html.Label("Nominal GDP (USD)", className="form-label"),
+                                dcc.Input(
+                                    id="gdp-current-input",
+                                    type="number",
+                                    value=14_300_000_000,
+                                    step=100_000_000,
+                                    className="form-input"
+                                ),
+                                html.Small("Example: 2023 ($14.1B), 2024 ($14.3B est.)", className="form-hint"),
+                                
+                                html.Label("GDP Growth Rate (%)", className="form-label"),
+                                dcc.Slider(
+                                    id="gdp-growth-input",
+                                    min=5, max=10, step=0.1, value=7.0,
+                                    marks={i: f"{i}%" for i in range(5, 11)},
+                                    className="form-slider"
+                                ),
+                            ],
+                        ),
                     ],
-                    className="prediction-card", style={"marginBottom": "15px"}
                 ),
-                html.Div(
-                    [
-                        html.H4("2️⃣ Economic Indicators (Rwanda-specific)", style={"color": palette["primary"], "fontSize": "14px"}),
-                        html.Label("Global Market Growth (%)"),
-                        dcc.Slider(id="world-growth-input", min=0, max=6, step=0.1, value=3.5, marks={i: f"{i}%" for i in range(0, 7)}),
-                        html.Small("Expected growth of the global market relevant to this product. Higher values indicate stronger international demand.", style={"color": "gray", "fontSize": 12, "display": "block", "marginTop": "4px"}),
-                        html.Br(),
-                        html.Label("Rwanda Country Economy Growth (%)"),
-                        dcc.Slider(id="country-growth-input", min=5, max=10, step=0.1, value=8.0, marks={i: f"{i}%" for i in range(5, 11)}),
-                        html.Small("Annual GDP growth rate of Rwanda. Higher growth may positively impact exports.", style={"color": "gray", "fontSize": 12, "display": "block", "marginTop": "4px"}),
-                    ],
-                    className="prediction-card", style={"marginBottom": "15px"}
+                
+                html.Button(
+                    "🔮 Predict Export Value",
+                    id="predict-button",
+                    n_clicks=0,
+                    className="predict-button"
                 ),
-                html.Div(
-                    [
-                        html.H4("3️⃣ Rwanda GDP Information", style={"color": palette["primary"], "fontSize": "14px"}),
-                        html.Label("Nominal GDP (USD)"),
-                        dcc.Input(id="gdp-current-input", type="number", value=14_300_000_000, step=100_000_000, style={"width": "100%"}),
-                        html.Div("Example: 2023 ($14.1B), 2024 ($14.3B est.)", style={"fontSize": 12, "color": "gray"}),
-                        html.Br(),
-                        html.Label("GDP Growth Rate (%)"),
-                        dcc.Slider(id="gdp-growth-input", min=5, max=10, step=0.1, value=7.0, marks={i: f"{i}%" for i in range(5, 11)}),
-                    ],
-                    className="prediction-card"
-                ),
-                html.Br(),
-                html.Div(
-                    html.Button(
-                        "🔮 Predict Export Value for Rwanda", id="predict-button", n_clicks=0,
-                        style={"backgroundColor": palette["accent"], "color": "white", "padding": "12px 25px", "fontWeight": "bold", "border": "none", "borderRadius": "10px", "cursor": "pointer", "fontSize": "16px", "boxShadow": "0px 2px 5px rgba(0,0,0,0.2)"}
-                    ),
-                    style={"textAlign": "center", "marginTop": "20px"}
-                ),
-                html.Div(id="prediction-output", style={"marginTop": "20px", "textAlign": "center", "fontSize": "22px", "fontWeight": "600", "color": palette["primary"], "padding": "15px", "backgroundColor": palette["surface"], "borderRadius": "12px", "boxShadow": "0px 3px 8px rgba(0,0,0,0.1)", "width": "70%", "margin": "20px auto"}),
+                
+                html.Div(id="prediction-output", className="prediction-output"),
             ],
-            style={"padding": "15px", "maxHeight": "calc(100vh - 80px)", "overflow": "hidden", "display": "flex", "flexDirection": "column", "justifyContent": "flex-start"}
         )
     
     elif button_id == "nav-recommendation":
         chart = html.Div(
-            [
-                html.H2("💡 Strategic Recommendations", style={"textAlign": "center", "color": palette["primary"], "marginBottom": "30px"}),
+            className="recommendations-container",
+            children=[
                 html.Div(
-                    [
-                        html.Div([html.Span("🚀", style={"fontSize": "24px", "marginRight": "10px"}), html.Span("Focus on top growing products")], className="recommendation-card"),
-                        html.Div([html.Span("🌍", style={"fontSize": "24px", "marginRight": "10px"}), html.Span("Explore new markets in Sub-Saharan Africa")], className="recommendation-card"),
-                        html.Div([html.Span("💰", style={"fontSize": "24px", "marginRight": "10px"}), html.Span("Invest in value addition and processing")], className="recommendation-card"),
-                        html.Div([html.Span("📊", style={"fontSize": "24px", "marginRight": "10px"}), html.Span("Monitor RCA and market share regularly")], className="recommendation-card"),
-                    ],
-                    style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(250px, 1fr))", "gap": "20px", "marginTop": "20px"}
-                ),
-                html.Div(
-                    [
+                    className="recommendations-header",
+                    children=[
+                        html.H2("💡 Strategic Recommendations for SMEs in Rwanda", className="recommendations-title"),
                         html.P(
-                            "These recommendations are designed to help optimize Rwanda's export strategy. "
-                            "Focus on products with high growth potential, explore new markets, invest in value addition, "
-                            "and regularly monitor performance metrics such as RCA and market share.",
-                            style={"fontSize": "16px", "color": palette["muted"], "marginTop": "30px"}
-                        )
-                    ]
+                            "Export growth is possible when SMEs strategically explore markets with institutions like RDB and NAEB, "
+                            "beginning regionally under AfCFTA and EAC. By meeting international quality standards and embedding Rwanda's "
+                            "cultural identity in branding, trust and uniqueness are secured. Leveraging export services, clusters, and "
+                            "digital platforms opens scalable opportunities. With consistency in quality, branding, and partnerships, "
+                            "Rwanda's SMEs can confidently transform into global players.",
+                            className="recommendations-intro"
+                        ),
+                    ],
+                ),
+                
+                html.Div(
+                    className="pillars-grid",
+                    children=[
+                        # Pillar 1: Market Expansion
+                        html.Div(
+                            className="pillar-card pillar-blue",
+                            children=[
+                                html.Div(className="pillar-icon", children="🌍"),
+                                html.H3("Market Expansion", className="pillar-title"),
+                                html.Div(
+                                    className="pillar-content",
+                                    children=[
+                                        html.P("Strategic Regional Focus", className="pillar-subtitle"),
+                                        html.Ul(
+                                            className="pillar-list",
+                                            children=[
+                                                html.Li("Begin with AfCFTA and EAC regional markets"),
+                                                html.Li("Partner with RDB and NAEB for market intelligence"),
+                                                html.Li("Leverage preferential trade agreements"),
+                                                html.Li("Explore Sub-Saharan Africa opportunities"),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        
+                        # Pillar 2: Quality & Identity
+                        html.Div(
+                            className="pillar-card pillar-green",
+                            children=[
+                                html.Div(className="pillar-icon", children="⭐"),
+                                html.H3("Quality & Identity", className="pillar-title"),
+                                html.Div(
+                                    className="pillar-content",
+                                    children=[
+                                        html.P("Standards & Cultural Branding", className="pillar-subtitle"),
+                                        html.Ul(
+                                            className="pillar-list",
+                                            children=[
+                                                html.Li("Meet international quality standards"),
+                                                html.Li("Embed Rwanda's cultural identity in branding"),
+                                                html.Li("Build trust through consistent quality"),
+                                                html.Li("Create unique market positioning"),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        
+                        # Pillar 3: Digital Enablement
+                        html.Div(
+                            className="pillar-card pillar-purple",
+                            children=[
+                                html.Div(className="pillar-icon", children="🚀"),
+                                html.H3("Digital Enablement", className="pillar-title"),
+                                html.Div(
+                                    className="pillar-content",
+                                    children=[
+                                        html.P("Technology & Scale", className="pillar-subtitle"),
+                                        html.Ul(
+                                            className="pillar-list",
+                                            children=[
+                                                html.Li("Leverage digital export platforms"),
+                                                html.Li("Join industry clusters for collaboration"),
+                                                html.Li("Access export services and support"),
+                                                html.Li("Scale operations through technology"),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        
+                        # Pillar 4: Strategic Partnerships
+                        html.Div(
+                            className="pillar-card pillar-orange",
+                            children=[
+                                html.Div(className="pillar-icon", children="🤝"),
+                                html.H3("Strategic Partnerships", className="pillar-title"),
+                                html.Div(
+                                    className="pillar-content",
+                                    children=[
+                                        html.P("Collaboration & Growth", className="pillar-subtitle"),
+                                        html.Ul(
+                                            className="pillar-list",
+                                            children=[
+                                                html.Li("Collaborate with RDB and NAEB"),
+                                                html.Li("Form strategic alliances with exporters"),
+                                                html.Li("Maintain consistency in partnerships"),
+                                                html.Li("Build long-term relationship networks"),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                
+                html.Div(
+                    className="action-section",
+                    children=[
+                        html.H3("🎯 Key Takeaways", className="action-title"),
+                        html.Div(
+                            className="takeaways-grid",
+                            children=[
+                                html.Div(
+                                    className="takeaway-item",
+                                    children=[
+                                        html.Div(className="takeaway-number", children="1"),
+                                        html.P("Start Regional, Think Global - Begin with AfCFTA/EAC markets"),
+                                    ],
+                                ),
+                                html.Div(
+                                    className="takeaway-item",
+                                    children=[
+                                        html.Div(className="takeaway-number", children="2"),
+                                        html.P("Quality + Culture = Competitive Advantage"),
+                                    ],
+                                ),
+                                html.Div(
+                                    className="takeaway-item",
+                                    children=[
+                                        html.Div(className="takeaway-number", children="3"),
+                                        html.P("Digital Platforms Enable Scale and Reach"),
+                                    ],
+                                ),
+                                html.Div(
+                                    className="takeaway-item",
+                                    children=[
+                                        html.Div(className="takeaway-number", children="4"),
+                                        html.P("Strategic Partnerships Accelerate Growth"),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
                 ),
             ],
-            style={"padding": "30px"}
         )
     
-    else:
+    else:  # nav-export-trends (default)
         fig = px.line(
             exports_by_year, x="Year", y="Export (US$ Thousand)", markers=True,
-            title="Rwanda Export Trend Over Time (Overall Data)"
+            title="Rwanda Export Trend Over Time"
         )
-        fig.update_traces(line=dict(color=palette["accent"], width=3), marker=dict(size=8, color=palette["accent_soft"], line=dict(color=palette["accent"], width=2)))
+        fig.update_traces(
+            line=dict(color="#3B82F6", width=3),
+            marker=dict(size=8, color="#60A5FA", line=dict(color="#3B82F6", width=2))
+        )
         fig = stylize(fig)
         chart = dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "100%"})
     
@@ -751,6 +895,7 @@ def update_chart(
         classes[8],
     )
 
+
 @app.callback(
     Output("prediction-output", "children"),
     Input("predict-button", "n_clicks"),
@@ -765,11 +910,15 @@ def predict_exports(n_clicks, year, product, gdp_current, gdp_growth, world_grow
     if n_clicks == 0:
         return ""
 
-    # Validate inputs
     if None in [year, product, gdp_current, gdp_growth, world_growth, country_growth]:
-        return "⚠️ Please fill in all the fields before predicting."
+        return html.Div(
+            className="prediction-result prediction-error",
+            children=[
+                html.Div(className="result-icon", children="⚠"),
+                html.P("Please fill in all fields before predicting")
+            ]
+        )
     
-    # Prepare your input features in the same order your model expects
     X_new = pd.DataFrame([{
         "Year": year,
         "Product Group": product,
@@ -779,11 +928,17 @@ def predict_exports(n_clicks, year, product, gdp_current, gdp_growth, world_grow
         "GDP_Growth_Percent": gdp_growth,
     }])
     
-    # Make prediction
     prediction = model.predict(X_new)[0]
     
-    # Return nicely formatted output
-    return f"🔮 Predicted Export Value for {product} in {year}: ${prediction:,.0f}K"
+    return html.Div(
+        className="prediction-result prediction-success",
+        children=[
+            html.Div(className="result-icon", children="✅"),
+            html.H3("Predicted Export Value", className="result-label"),
+            html.Div(className="result-value", children=f"${prediction:,.0f}K"),
+            html.P(f"for {product} in {year}", className="result-detail"),
+        ]
+    )
 
 
 if __name__ == "__main__":
